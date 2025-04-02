@@ -1,17 +1,21 @@
 # %%
 from pathlib import Path
 import sys
+import PyPDF2
 import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT_DIR))
 
+from services.schema import ComplianceReport
 from settings import BASE_DIR
 from langchain.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
+from langchain_core.output_parsers.pydantic import PydanticOutputParser
 
-model = OllamaLLM(model="llama3.2")
-
+parser = PydanticOutputParser(pydantic_object=ComplianceReport)
+format_instructions = parser.get_format_instructions()
+model = OllamaLLM(model="mistral:latest",temperature=0)
 
 
 # %%
@@ -34,29 +38,69 @@ Behavioral Guidelines:
 - Cite Evidence from Data: When flagging risks or missing terms, refer to relevant clauses from the database.  
 - Be Context-Aware: Understand contract categories (e.g., SaaS agreements, employment contracts, NDAs).  
 
-Example AI Response Format:  
-Issue Detected: The contract lacks a clear dispute resolution mechanism.  
-Best Practice: Contracts typically include an arbitration or jurisdiction clause.  
-Suggested Fix: Add a clause specifying that disputes will be resolved through arbitration in a designated jurisdiction.  
-"""
+Compliance Rules:
+{rules}
 
+For each compliance rule, follow the "How to review" steps provided in the dataset to analyze the contract document. Ensure that all compliance rules are thoroughly analyzed, and provide detailed feedback for each rule based on the specified review steps.  
+"""
 
 
 # %%
 def get_context() -> str:
     """
-    Retrieve context from the legal compliance dataset.
+    Retrieve the legal compliance context from a dataset.
 
-    This function reads the legal contract review checklist from a CSV file,
-    converts it into a JSON format, and returns it as a string. The checklist
-    contains tasks and guidelines for reviewing legal contracts.
+    This function reads a CSV file containing a legal contract review checklist,
+    converts the data into a structured JSON-like string format, and returns it.
+    The checklist includes compliance rules, expected outcomes, descriptions, 
+    and instructions for reviewing legal contracts.
 
     Returns:
-        str: A JSON string representation of the legal compliance dataset.
+        str: A formatted string representation of the legal compliance dataset, 
+             including compliance rules and their associated details.
     """
     df = pd.read_csv(BASE_DIR / "data" / "legal_contract_review_checklist.csv")
-    return df.to_json(orient="records")
+    data = df.to_dict(orient="records")
 
+    results = []
+
+    for com in data:
+        template = f"""
+        * Compliance Rule: {com['name']}:
+            - Expected outcome: {com['completion_criteria']}
+            - Check description: {com['description']}
+            - How to review: 
+                    {com['instructions']}
+        """
+        results.append(template)
+    out = '\n'.join(results)
+    return out
+
+def format_compliance_report(report: ComplianceReport) -> str:
+    """Format a ComplianceReport instance into the required string format."""
+    formatted_report = []
+    
+    # Format failed compliance rules
+    for idx, failure in enumerate(report.compliance_failed, start=1):
+        formatted_report.append(
+            f"\n##### ❌ Compliance Rule {idx}: {failure.rule}.\n"
+            f"- Issue Detected: {failure.issue_detected}.\n"
+            f"- Best Practice: {failure.best_practice}.\n"
+            f"- Suggested Fix: {failure.suggested}.\n"
+        )
+    
+    # Format passed compliance rules
+    for idx, passed in enumerate(report.compliance_passed, start=len(report.compliance_failed) + 1):
+        formatted_report.append(
+            f"\n##### ✅ Compliance Rule {idx}: {passed.rule}.\n"
+            f"- Report: {passed.report}.\n"
+        )
+    
+    # Append compliance score and summary
+    formatted_report.append(f"##### Compliance Score: {report.compliance_score}%")
+    formatted_report.append(f"##### Summary: {report.summary}")
+    
+    return "\n".join(formatted_report)
     
 def analyze_contract(contract: str) -> str:
     """
@@ -75,29 +119,38 @@ def analyze_contract(contract: str) -> str:
              a summary of compliant and non-compliant items.
     """
     # https://python.langchain.com/docs/tutorials/rag/
-    
     compliance_rules = get_context()
     template = """
-        Analyze the following contract based on the provided compliance rules.
-        
-        Contract:
+        Analyze this contract list all compliance rules, including those that passed and those that failed.
+
+        Contract PDF content:
         {contract}
-        
-        Compliance Rules:
-        {rules}
-        
-        For each rule, determine if the contract complies or fails. List compliant items with ✅, 
-        and non-compliant items with ❌. 
-        Provide a percentage score for compliance and a summary 
-        of the analysis.
+
+        {format_instructions}
     """
     
     prompt_template = ChatPromptTemplate([
         ("system", SYSTEM),
         ("user", template)
     ])
-    messages = prompt_template.invoke({"contract": contract, "rules": compliance_rules})
+
+    chain = prompt_template | model | parser
     
-    res = model.invoke(messages)
-    return res
+    data:ComplianceReport = chain.invoke({"contract": contract, "rules": compliance_rules,"format_instructions": format_instructions})
+    return format_compliance_report(data)
+    # return format_output(data)
 # %%
+
+
+
+# analyze_contract(contract)
+# %%
+
+
+
+def extract_text_from_pdf(pdf_path)->str:
+    """Extract text from a PDF file."""
+    with open(pdf_path, "rb") as file:
+        reader = PyPDF2.PdfReader(file)
+        text = " ".join(page.extract_text() for page in reader.pages if page.extract_text())
+    return text

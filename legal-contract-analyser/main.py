@@ -1,5 +1,7 @@
 import streamlit as st
-from services.analyser_helper import analyze_contract
+from services.analyser_helper import analyze_contract, extract_text_from_pdf
+import os
+import tempfile
 
 
 def main():
@@ -27,14 +29,21 @@ def main():
     
     if uploaded_file is not None:
         try:
-            file_content = uploaded_file.read()
-            
-            st.info("Analyzing the contract...")
-            analysis_result = analyze_contract(file_content)
-            st.success("Contract analysis complete!")
-            
-            st.markdown("### 📝 Analysis Result")
-            st.markdown(analysis_result, unsafe_allow_html=True)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_pdf_path = os.path.join(temp_dir, "uploaded_file.pdf")
+                
+                # Write the uploaded file content to the temporary PDF file
+                with open(temp_pdf_path, "wb") as temp_pdf_file:
+                    temp_pdf_file.write(uploaded_file.read())
+                
+                # Pass the temporary file path to extract_text_from_pdf
+                file_content = extract_text_from_pdf(temp_pdf_path)
+                st.info("Analyzing the contract...")
+                analysis_result = analyze_contract(file_content)
+                st.success("Contract analysis complete!")
+                
+                st.markdown("### 📝 Analysis Result")
+                st.markdown(analysis_result, unsafe_allow_html=True)
         
         except Exception as e:
             st.error(f"An error occurred: {e}")

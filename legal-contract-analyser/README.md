@@ -5,10 +5,12 @@ This project leverages AI to streamline the process of legal contract review, re
 ---
 
 ## Features
-- **AI-Powered Analysis**: Uses the Llama 3.2 model via the open-source Ollama tool for contract review.
-- **Customizable Checklist**: Reads knowledge data from a CSV file located at `data/legal_contract_review_checklist.csv`.
+- **AI-Powered Analysis**: Uses the Mistral model via the open-source Ollama tool for contract review.
+- **Customizable Checklist**: Reads compliance rules and instructions from a CSV file located at `data/legal_contract_review_checklist.csv`.
 - **Interactive UI**: Built with Streamlit for an intuitive user experience.
-- **Modular Design**: Helper functions are organized in `services/analyser_helper.py`.
+- **PDF Text Extraction**: Extracts contract text from PDF files for analysis.
+- **Detailed Compliance Reports**: Generates structured compliance reports with actionable feedback.
+- **Modular Design**: Helper functions and schemas are organized in `services/` and `settings.py`.
 
 ---
 
@@ -16,19 +18,26 @@ This project leverages AI to streamline the process of legal contract review, re
 
 ### Prerequisites
 1. **Install Ollama**  
-    Follow the instructions on the [Ollama website](https://ollama.ai) to install the tool and set up the Llama 3.2 model.
+  Download and install Ollama by following the instructions on the [Ollama website](https://ollama.ai). Ollama is available for macOS and other supported platforms.
 
-2. **Clone the Repository**  
-    ```bash
-    git clone https://github.com/your-repo/legal-contract-analyser.git
-    cd legal-contract-analyser
-    ```
+2. **Pull the Mistral Model**  
+  After installing Ollama, open your terminal and run the following command to pull the `mistral:latest` model:  
+  ```bash
+  ollama pull mistral:latest
+  ```
+  This will download the latest version of the Mistral model, which is required for contract analysis.
 
-3. **Install Python Dependencies**  
-    Ensure you have Python 3.8+ installed. Then, install the required packages:  
-    ```bash
-    pip install -r requirements.txt
-    ```
+3. **Clone the Repository**  
+  ```bash
+  git clone https://github.com/your-repo/legal-contract-analyser.git
+  cd legal-contract-analyser
+  ```
+
+4. **Install Python Dependencies**  
+  Ensure you have Python 3.8+ installed. Then, install the required packages:  
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 ---
 
@@ -37,11 +46,16 @@ This project leverages AI to streamline the process of legal contract review, re
 ### Running the Application
 1. Navigate to the project directory.
 2. Start the Streamlit app:  
-    ```bash
-    streamlit run main.py
-    ```
+  ```bash
+  streamlit run main.py
+  ```
 
 3. Open the app in your browser at `http://localhost:8501`.
+
+### Analyzing a Contract
+1. Upload a PDF file containing the legal contract.
+2. The app will extract text from the PDF and analyze it against predefined compliance rules.
+3. View the detailed compliance report, including passed and failed rules, compliance score, and actionable feedback.
 
 ---
 
@@ -52,15 +66,23 @@ This project leverages AI to streamline the process of legal contract review, re
 - **Helper Functions**: [`services/analyser_helper.py`](services/analyser_helper.py)  
   Contains utility functions used for contract analysis.
 
+- **Schemas**: [`services/schema.py`](services/schema.py)  
+  Defines the structure for compliance reports.
+
 - **Knowledge Data**: [`data/legal_contract_review_checklist.csv`](data/legal_contract_review_checklist.csv)  
   A CSV file containing the checklist for contract review.
+
+- **Settings**: [`settings.py`](settings.py)  
+  Contains configuration settings for the project.
 
 ---
 
 ## Technologies Used
-- **Ollama**: Open-source tool for running the Llama 3.2 model.
+- **Ollama**: Open-source tool for running the Mistral model.
 - **LangChain**: Python package for building applications with LLMs.
 - **Streamlit**: Framework for creating interactive web applications.
+- **PyPDF2**: Library for extracting text from PDF files.
+- **Pandas**: Used for processing compliance rule datasets.
 
 ---
 
@@ -76,3 +98,4 @@ Contributions are welcome! Feel free to submit issues or pull requests to improv
 
 ## Contact
 For any questions or feedback, please reach out to [aniekutmfonekere@gmail.com](mailto:aniekutmfonekere@gmail.com).
+
